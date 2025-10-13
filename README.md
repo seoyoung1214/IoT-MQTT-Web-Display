@@ -1,8 +1,5 @@
-# IoT-MQTT-Web-Display
-Real-time sensor data (Temp/Humidity) display using ESP32, MQTT, and GitHub Pages.
-
 # 🌡️ IoT-MQTT-Web-Display
-(혹은 ESP32-DHT11-MQTT-Web)
+Real-time sensor data (Temp/Humidity) display using ESP32, MQTT, and GitHub Pages.
 
 ## 📌 프로젝트 개요 (Project Overview)
 
@@ -36,8 +33,11 @@ Real-time sensor data (Temp/Humidity) display using ESP32, MQTT, and GitHub Page
 
 ## 📁 레포지토리 구조 (Repository Structure)
 IoT-MQTT-Web-Display/
+
 ├── index.html          # 웹페이지 프론트엔드 코드 (MQTT 구독, 데이터 표시)
+
 ├── esp32_dht11_mqtt.ino # ESP32 아두이노 코드 (DHT11 측정, JSON 구성, MQTT 발행)
+
 └── README.md           # 현재 문서
 ---
 
