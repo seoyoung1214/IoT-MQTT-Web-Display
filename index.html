@@ -2,77 +2,117 @@
 <html lang="ko">
 <head>
     <meta charset="utf-8" />
-    <title>My</title>
-    <H3>나의 웹(2277040, 김서영)</H3>
+    <title>My IoT Data Display</title>
+    <H3>나의 웹(2277040, 김서영)</H3> 
+    
+    <style>
+        .data-container {
+            border: 2px solid #007bff;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+        }
+        .data-container p {
+            font-size: 1.2em;
+            margin: 5px 0;
+        }
+        .data-container b {
+            font-weight: bold;
+            color: #dc3545; /* 온도/습도 값 강조 색상 */
+        }
+    </style>
+    
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <script>
+        // *************** 설정 (학번으로 수정) ******************
+        const my_student_id = '2277040'; 
         const brokerUrl = 'wss://damoa.io:9002';
-    
-        // 고유한 클라이언트 ID 생성 (다른 사용자와 충돌 방지)
-        const clientId = 'iot-client-' + Math.random().toString(16).substr(2, 8);
+        const subscribeTopic = `ewha/${my_student_id}`; 
+        // *******************************************************
+
+        // 고유한 클라이언트 ID 생성
+        const clientId = 'web-client-' + Math.random().toString(16).substr(2, 8);
         
-        // 별도 인증이 필요 없으므로 options 객체는 간단하게 clientId만 포함
         const options = {
-          clientId: clientId,
+            clientId: clientId,
         };
-    
+        
         console.log(`MQTT 브로커(${brokerUrl})에 접속을 시도합니다...`);
         const client = mqtt.connect(brokerUrl, options);
-    
+        
         // 1. 브로커 접속 성공 시 실행되는 이벤트
         client.on('connect', () => {
             console.log(`✅ 접속 성공! (클라이언트 ID: ${clientId})`);
-    
+            
             // 2. 접속 성공 후 토픽 구독
-            const topic = `ewha/2277040`; // 다른 사용자와 겹치지 않도록 고유한 토픽 사용, 본인학번으로 수정
-            client.subscribe(topic, (err) => {
+            client.subscribe(subscribeTopic, (err) => {
                 if (!err) {
-                    console.log(`📄 토픽 구독 성공: ${topic}`);
-    
-                    // 3. 구독 성공 후 해당 토픽으로 메시지 발행
-                    //const message = 'Hello, MQTT from browser!';
-                    //console.log(`🚀 메시지 발행: "${message}"`);
-                    //client.publish(topic, message);
-                    client.publish('ewha/checkin', "본인학번 이름");
+                    console.log(`📄 토픽 구독 성공: ${subscribeTopic}`);
+                    
+                    // 3. (과제 4항 checkin 메시지) 웹페이지 로드 시 checkin 메시지 발행
+                    client.publish('ewha/checkin', `WEB_LOAD_${my_student_id}_${clientId}`); 
+                    console.log(`🚀 checkin 메시지 발행 완료`);
                 } else {
                     console.error('토픽 구독 오류:', err);
                 }
             });
         });
-    
-        // 4. 구독한 토픽으로 메시지가 들어왔을 때 실행되는 이벤트
+        
+        // 4. 구독한 토픽으로 메시지가 들어왔을 때 실행되는 이벤트 (JSON 파싱 로직)
         client.on('message', (topic, message) => {
-            console.log(`${topic} ${message.toString()}`);
-            // 1. id가 'main'인 div 요소를 찾습니다.
-            const mainDiv = document.getElementById('main');
-    
-            // 2. 새로 추가할 HTML 코드를 문자열로 만듭니다. (백틱 `` 사용)
-            const messageHTML = `
-                <div class="message-item">
-                    <span>${message.toString()}</span>
-                </div>
-            `;
-    
-            // 3. 새로운 HTML을 적용 합니다.
-            mainDiv.innerHTML = messageHTML;
+            const messageString = message.toString();
+            console.log(`수신된 메시지: ${topic} ${messageString}`);
             
-            // 스크롤을 항상 아래로 이동시켜 최신 메시지를 보여줍니다.
-            mainDiv.scrollTop = mainDiv.scrollHeight;
-    
-            // 모든 작업 완료 후 접속 종료
-            //client.end();
-            //console.log('🔚 작업 완료 후 접속을 종료합니다.');
+            // id가 'main'인 div 요소를 찾습니다.
+            const mainDiv = document.getElementById('main');
+            
+            try {
+                // 수신된 메시지를 JSON 객체로 파싱합니다.
+                const data = JSON.parse(messageString);
+                
+                // ESP32 코드에서 설정한 키 이름 (temperature, humidity)을 사용
+                const temp = data.temperature;
+                const humid = data.humidity;
+                const time = new Date().toLocaleTimeString(); 
+                
+                // 온도와 습도를 추출하여 명확하게 표시하도록 HTML 구성
+                const messageHTML = `
+                    <div class="data-container">
+                        <p>🕒 수신 시각: ${time}</p>
+                        <p>🌡️ 온도: <b>${temp}°C</b></p>
+                        <p>💧 습도: <b>${humid}%</b></p>
+                        <p style="font-size: 0.8em; color: gray;">카운트: ${data.count}, 원본 JSON: ${messageString}</p>
+                    </div>
+                `;
+                
+                // 새로운 HTML을 적용 (기존 내용 덮어쓰기)
+                mainDiv.innerHTML = messageHTML;
+
+            } catch (e) {
+                // JSON 파싱 실패 시 (예: checkin 메시지나 오류 메시지)
+                console.error('JSON 파싱 실패:', e);
+                mainDiv.innerHTML = `
+                    <div class="data-container">
+                        <p>⚠️ JSON 파싱 실패 (일반 텍스트 메시지):</p>
+                        <p><b>${messageString}</b></p>
+                    </div>
+                `;
+            }
         });
         
-        // 접속 중 에러 발생 시
+        // 기타 에러 및 종료 핸들러
         client.on('error', (err) => {
             console.error('연결 오류:', err);
-            client.end();
         });
+        
     </script>
 </head>
     
 <body>
-<div id="main"></div>
+    <h1>IoT 실시간 온습도 모니터링</h1>
+    <div id="main">
+        <p>MQTT 접속 대기 중...</p>
+    </div>
 </body>
 </html>
